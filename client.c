@@ -33,24 +33,38 @@ void createConnection()
 		exit(1);
 	}
 	
-	
 	recv(NetworkSocket,&ServerResponse,sizeof(ServerResponse),0);
-
 	printf("%s \n",ServerResponse);
-
-
 	send(NetworkSocket,Name,sizeof(Name),0);
 
+}
+
+void holdconnection()
+{
+	char command[30];
+	int sw=1;
+	
+	printf("type help for help\n");
+
+	while(sw)
+	{	
+		scanf("%s",command);
+		send(NetworkSocket,command,strlen(command),0);
+		
+		if(strcmp(command,"stop")==0)
+			sw=0;
+		memset(&command,0x00,sizeof(command));
+
+
+	}
 
 }
 
 
 int main()
 {
-		Autentificare();
-
-		createConnection();
-
-
+	Autentificare();
+	createConnection();
+	holdconnection();
 	return 0;
 }

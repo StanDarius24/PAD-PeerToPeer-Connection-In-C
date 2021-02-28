@@ -1,15 +1,11 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include<string.h>
-#include <dirent.h>
-#include <limits.h>
-#include "disc.h"
+       #include <sys/stat.h>
+       #include <unistd.h>
+       #include <fcntl.h>
 
-#include "structura.h"
+#include "disc.h"
 void checkdir()
 {
 	struct stat info;
@@ -38,5 +34,7 @@ void checkdir()
 		}
 
 }
-
-
+int main()
+{	checkdir();
+	return 0;
+}

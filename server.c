@@ -9,109 +9,18 @@
 #include<unistd.h>
 #include<fcntl.h>
 #include<string.h>
-// chmod 700 server.c | gcc -Wall -D_REENTRANT -pthread -o sv server.c
 
+#include "structura.h"
+#define MAX_SIZE 10
+
+// chmod 700 server.c | gcc -Wall -D_REENTRANT -pthread -o sv server.c
 int ServerSocket;
 struct sockaddr_in ServerAddress;
-int ClientSocket[50];
+int ClientSocket[MAX_SIZE];
 char smd[30];
-
-typedef struct node{
-    char NumeFisier[25];
-    struct node *urm;
-}node;
-
-typedef struct ClientData{
-    char Nume[25];
-    struct node *Fisier;
-}ClientData;
-
 struct ClientData *DataClient;
 
-node *CreeateNode(char *fisier)
-{
-    struct node *Nod=malloc(sizeof(struct node));
-    strcpy(Nod->NumeFisier,fisier);
-    Nod->urm=NULL;
-    return Nod;
-}
 
-node * AddFile(node *Nod,char *filename)
-{
-    struct node *Nodint=CreeateNode(filename);
-    struct node *p=Nod;
-    while(p->urm !=NULL)
-        p=p->urm;
-    p->urm=Nodint;
-    return Nod;
-}
-
-void parcurgereFisiere(node *Nod)
-{
-    printf("{ ");
-    while(Nod->urm!=NULL)
-    {
-        printf("%s  -> ",Nod->NumeFisier);
-        Nod=Nod->urm;
-    }
-    printf("%s }.",Nod->NumeFisier);
-    printf("\n");
-}
-
-ClientData *CreereClient(char *name)
-{
-    struct ClientData *Client = malloc(sizeof(struct ClientData));
-    strcpy(Client->Nume,name);
-    Client->Fisier=NULL;
-    return Client;
-}
-
-ClientData *AdaugareFisier(ClientData *Client,char *numeFisier)
-{
-    if(Client->Fisier==NULL)
-    {
-        Client->Fisier=CreeateNode(numeFisier);
-    }
-    else
-    Client->Fisier=AddFile(Client->Fisier,numeFisier);
-    return Client;
-}
-
-void PrintareClient(ClientData *Client)
-{
-    printf("\n%s\n",Client->Nume);
-    parcurgereFisiere(Client->Fisier);
-    printf("\n");
-}
-
-void checkdir()
-{
-	struct stat info;
-	int fd;
-	if(lstat("server",&info)<0)
-	{
-		printf("director inexistent, acesta se creaza\n");
-		mkdir("server",0777);
-		system("touch server/clientslist");
-	}
-	else
-		if(S_ISDIR(info.st_mode))
-		{
-			printf("director existent\n");	
-			if(( fd = open("server/clientslist",O_CREAT | O_EXCL | O_WRONLY, S_IRWXU))<0)
-			{
-				printf("Fisier existent\n");
-				close(fd);
-			}
-			else
-			{
-				system("touch server/clientslist");
-			}
-
-			
-		}
-
-}
 
 
 void sendMessage(char *ServerMessage,int i)
@@ -168,7 +77,7 @@ void * threadClient( void *arg )
 
 void WaitForOtherClients()
 {		
-	pthread_t thread[10];
+	pthread_t thread[MAX_SIZE];
 	int i=0;
 	while(1)
 	{
@@ -189,7 +98,7 @@ void WaitForOtherClients()
 
 void createConnection()
 {
-	DataClient=malloc(sizeof(struct ClientData)*40);
+	DataClient=malloc(sizeof(struct ClientData)*MAX_SIZE);
 	ServerSocket = socket(AF_INET,SOCK_STREAM,0);
 	ServerAddress.sin_family = AF_INET;
 	ServerAddress.sin_port = htons(2424);

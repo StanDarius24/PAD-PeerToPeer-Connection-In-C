@@ -11,6 +11,7 @@
 #include<string.h>
 
 #include "structura.h"
+#include "disc.h"
 #define MAX_SIZE 10
 
 // chmod 700 server.c | gcc -Wall -D_REENTRANT -pthread -o sv server.c
@@ -67,9 +68,11 @@ void * threadClient( void *arg )
 {
 	char Name[25];
 	int i = *((int *) arg);
+	printf("i=%d\n",i);
 	sendMessage("Connected!",i);
 	strcpy(Name,receiveMessage(i));
-	//DataClient[i]=*CreereClient(Name);
+	newUser(Name,DataClient,i);
+	DataClient[i]=*CreereClient(Name);
 	commands(i,Name);
 	printf("%s has disconnected!\n",Name);
 	pthread_exit(NULL);
@@ -84,10 +87,10 @@ void WaitForOtherClients()
 		if( (ClientSocket[i] = accept(ServerSocket,NULL,NULL)) == -1)
 			printf("Accepted failed at %d",i);
 		else
-			{
+			{		
 					if(pthread_create(&thread[i],NULL,threadClient,&i) !=0 )
 					printf("Failed to create thread\n");
-			
+					
 				
 			}
 		printf("%d",i);

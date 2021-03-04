@@ -6,8 +6,9 @@ typedef struct node{
 }node;
 typedef struct ClientData{
     char Nume[25];
-    struct node *Fisier;
-}ClientData;
+    struct node *Fisier;    
+}ClientData;				
+							
 void parcurgereFisiere(node *Nod);
 node * CreeateNode(char *fisier);
 node * AddFile(node *Nod,char *filename);

@@ -14,5 +14,3 @@
 * Once that is made, the partial files will be partially transfered to the client and after completion a checksum is calculated and verified in order to proceed to the last step: file reconstruction.
 
 # UML Use Case Diagram
-
-TBD

@@ -26,6 +26,8 @@ node * AddFile(node *Nod,char *filename)
 
 void parcurgereFisiere(node *Nod)
 {
+    if(Nod!=NULL)
+{
     printf("{ ");
     while(Nod->urm!=NULL)
     {
@@ -34,6 +36,7 @@ void parcurgereFisiere(node *Nod)
     }
     printf("%s }.",Nod->NumeFisier);
     printf("\n");
+}
 }
 
 ClientData *CreereClient(char *name)
@@ -45,7 +48,8 @@ ClientData *CreereClient(char *name)
 }
 
 ClientData *AdaugareFisier(ClientData *Client,char *numeFisier)
-{
+{  
+   
     if(Client->Fisier==NULL)
     {
         Client->Fisier=CreeateNode(numeFisier);

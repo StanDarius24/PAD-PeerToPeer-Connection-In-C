@@ -9,7 +9,6 @@
 #include<unistd.h>
 #include<fcntl.h>
 #include<string.h>
-
 #include "structura.h"
 #include "disc.h"
 #define MAX_SIZE 10
@@ -20,8 +19,6 @@ struct sockaddr_in ServerAddress;
 int ClientSocket[MAX_SIZE];
 char smd[30];
 struct ClientData *DataClient;
-
-
 
 
 void sendMessage(char *ServerMessage,int i)
@@ -48,18 +45,70 @@ void commands(int i,char *Name)
 {
 	int sw=1;
 	char command[30];
-
+	struct stat info;
 	while(sw)
 	{
 		memset(&command,0x00,sizeof(command));
 
 		recv(ClientSocket[i],&command,sizeof(command),0);
 
-		printf("%s : %s\n",Name,command);
+		
 
 		if(strcmp(command,"stop")==0)
 			sw=0;
 
+		if(strcmp(command,"add")==0)
+		{		printf("add\n");
+			char file[30];
+			memset(&file,0x00,sizeof(file));
+			recv(ClientSocket[i],&file,sizeof(file),0);
+			printf("file= %s\n",file);
+			if(lstat(file,&info)<0)
+			{
+			printf("Eroare la functia stat %s\n",file);
+			exit(99);
+			}
+			else
+				if(S_ISREG(info.st_mode))
+				{
+					int fd1,fd2;
+					int n;
+					char *buff=malloc(sizeof(char)*1024);
+					if((fd1=open(file,O_RDONLY))<0)
+					{
+						printf("Eroare la deschidere fisier\n");
+						exit(75);
+					}
+					else
+					{
+						
+						snprintf(buff,50,"server/%s/%s",Name,file);
+
+						if((fd2=open(buff,O_CREAT|O_WRONLY|O_EXCL,S_IRWXU))<0)
+						{
+							printf("Eroare la creare fisier\n");
+							exit(69);
+						}
+
+						while((n=read(fd1,buff,1024))>0)
+						{
+							if(write(fd2,buff,strlen(buff))<0)
+							{
+								printf("Eroare la scrierea in fisier\n");
+								exit(24);
+							}
+						}
+					}
+					close(fd1);
+					close(fd2);
+					free(buff);
+				}
+
+
+			
+		}
+		printf("%s : %s\n",Name,command);
+		PrintareClient(&DataClient[i]);
 	}
 
 }
@@ -73,6 +122,7 @@ void * threadClient( void *arg )
 	strcpy(Name,receiveMessage(i));
 	newUser(Name,DataClient,i);
 	DataClient[i]=*CreereClient(Name);
+	PrintareClient(&DataClient[i]);
 	commands(i,Name);
 	printf("%s has disconnected!\n",Name);
 	pthread_exit(NULL);

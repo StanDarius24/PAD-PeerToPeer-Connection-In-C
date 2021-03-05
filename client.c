@@ -4,6 +4,7 @@
 #include<sys/socket.h>
 #include<netinet/in.h>
 #include<string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 int NetworkSocket;
 struct sockaddr_in ServerAddress;
@@ -43,7 +44,7 @@ void holdconnection()
 {
 	char command[30];
 	int sw=1;
-	
+	struct stat info;
 	printf("type help for help\n");
 
 	while(sw)
@@ -53,6 +54,26 @@ void holdconnection()
 		
 		if(strcmp(command,"stop")==0)
 			sw=0;
+
+		if(strcmp(command,"add")==0)
+		{
+			char file[30];
+
+			scanf("%s",file);
+			if(lstat(file,&info)<0)
+			{
+			printf("Eroare la functia stat\n");
+			exit(99);
+			}
+			else
+				if(S_ISREG(info.st_mode))
+				{	printf("file=%s\n",file);
+					send(NetworkSocket,file,strlen(file),0);
+				}
+
+			
+
+		}
 		memset(&command,0x00,sizeof(command));
 
 

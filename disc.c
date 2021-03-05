@@ -90,7 +90,8 @@ void newUser(char *Name, struct ClientData * DataClient,int i)
 				}
 				if(S_ISREG(info2.st_mode))
 				{
-					DataClient[i].Fisier=AddFile(DataClient[i].Fisier,Name);
+						printf("Adaugare \n");
+					DataClient[i]=*AdaugareFisier(&DataClient[i],names);
 				}
 
 
@@ -101,7 +102,7 @@ void newUser(char *Name, struct ClientData * DataClient,int i)
 
 		}
 		
-		if(sw)
+		if(sw==1)
 		{
 			printf("Utilizator nou, generam director!\n");
 
@@ -114,9 +115,9 @@ void newUser(char *Name, struct ClientData * DataClient,int i)
 			}else
 			if(child==0)
 			{
-				char *milsugio=malloc(sizeof(char)*112);
-				snprintf(milsugio,100,"server/%s",Name);
-				execlp("mkdir","mkdir",milsugio,NULL);
+				char *xD=malloc(sizeof(char)*112);
+				snprintf(xD,100,"server/%s",Name);
+				execlp("mkdir","mkdir",xD,NULL);
 			}
 
 

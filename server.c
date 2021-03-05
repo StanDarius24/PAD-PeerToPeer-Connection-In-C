@@ -5,417 +5,166 @@
 #include<netinet/in.h>
 #include<string.h>
 #include<pthread.h>
-#include<arpa/inet.h>
 #include<sys/stat.h>
 #include<unistd.h>
-#include<signal.h>
 #include<fcntl.h>
 #include<string.h>
-#include<dirent.h>
-#include<limits.h>
-#define MAX_SIZE 10
-#define MAX_CLIENTS 20
-
 #include "structura.h"
+#include "disc.h"
+#define MAX_SIZE 10
 
-// chmod 700 server.c | gcc -Wall -D_REENTRANT -pthread -o sv server.c structura.o disc.o
+// chmod 700 server.c | gcc -Wall -D_REENTRANT -pthread -o sv server.c
 int ServerSocket;
 struct sockaddr_in ServerAddress;
 int ClientSocket[MAX_SIZE];
 char smd[30];
-static _Atomic unsigned int nrClients = 0;
-static int uid = 10;
-int port = 2424;
-
-struct node *allFiles;
-
-ClientData *clients[MAX_CLIENTS];
-
-pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
+struct ClientData *DataClient;
 
 
-
-void AdaugareFisier(int iClient,char *numeFisier)
-{  
-   
-    if(clients[iClient]->Fisier == NULL)
-    {
-        clients[iClient]->Fisier = CreeateNode(numeFisier);
-    }
-    else
-    	clients[iClient]->Fisier = AddFile(clients[iClient]->Fisier,numeFisier);
-}
-
-void PrintareClient(int iClient)
-{
-		printf("\n%s: ", clients[iClient]->Nume);
-		if(clients[iClient]->Fisier != NULL)
-	   		parcurgereFisiere(clients[iClient]->Fisier);
-	   	else
-	   		printf("0 files found\n");
-	    printf("\n");
-}
-
-
-
-
-void flushStdout() {
-    printf("\r%s", "> ");
-    fflush(stdout);
-}
-
-void rmNewLine (char* arr, int length) {
-  int i;
-  for (i = 0; i < length; i++) { // trim \n
-    if (arr[i] == '\n') {
-      arr[i] = '\0';		
-      break;
-    }
-  }
-}
-
-void addToClientsList(ClientData *cl){
-	//pthread_mutex_lock(&clients_mutex);
-
-	for(int i=0; i < MAX_CLIENTS; ++i){
-		if(!clients[i]){
-			clients[i] = cl;
-			break;
-		}
-	}
-	//pthread_mutex_unlock(&clients_mutex);
-}
-
-void removeFromClientsList(int uid){
-//	pthread_mutex_lock(&clients_mutex);
-
-	for(int i=0; i < MAX_CLIENTS; ++i){
-		if(clients[i]){
-			if(clients[i]->uid == uid){
-				clients[i] = NULL;
-				break;
-			}
-		}
-	}
-
-	//pthread_mutex_unlock(&clients_mutex);
-}
-
-// sends message back to conn. sender
-void sendMessageToClient(char *s, int uid){
-	//pthread_mutex_lock(&clients_mutex);
-
-	for(int i=0; i<MAX_CLIENTS; ++i){
-		if(clients[i]){
-			if(clients[i]->uid == uid){
-				if(write(clients[i]->sockfd, s, strlen(s)) < 0)
-					printf("Eroare nu s-a putut tr msj 'Connected!' catre client\n");
-				break;
-			}
-		}
-	}
-//	pthread_mutex_unlock(&clients_mutex);
-}
-
-void * threadClient(void *arg)
-{
-	char Name[32];
-	nrClients++;
-	ClientData *cli = (ClientData *)arg;	
-	int disconnectClient = 0;
-	char cBuffer[1024];
-
-	// receive name
-	if(recv(cli->sockfd, Name, 32 ,0) <= 0)
-	{
-		printf("Eoare primire nume in theadClient()\n");
-			disconnectClient = 1;
-	} else {
-		strcpy(cli->Nume, Name);
-		snprintf(cBuffer, sizeof(cBuffer), "%s has succesfully connected\n", cli->Nume);
-		printf("%s", cBuffer);
-		sendMessageToClient("Connected!", cli->uid);
-	}
-	memset(&cBuffer,0x00,sizeof(cBuffer)); 
-
-	// handle new users ~ newUser(Name, clients, i): _Name, _clients, i?
-	int sw = 1;
-	DIR *director,*director2;
-	struct dirent *dir,*dir2;
-	struct stat info,info2;
-	char *name = malloc(sizeof(char)*30);
-	char *path = malloc(sizeof(char)*50);
-	int iClient = 0;
-	for(iClient = 0; iClient < nrClients; ++iClient) // iClient = index client curent
-	{
-			if(strcmp(clients[iClient]->Nume, Name) == 0)
-				break;
-	}
-
-	if(!(director=opendir("server")))
-	{
-		printf("Eroare la deschiderea directorului server\n");
-		exit(9);
-	}
-	while((dir=readdir(director))>0 && sw)
-	{
-		strcpy(name,dir->d_name);
-			if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0 )
-					continue;
-		snprintf(path,49,"server/%s",name);
+void sendMessage(char *ServerMessage,int i)
+{	
 	
-		if(lstat(path,&info)<0)
-		{
-			printf("Eroare la functia stat\n");
-			exit(10);
-		}
+	if(sendto(ClientSocket[i],ServerMessage,strlen(ServerMessage),0,(struct sockaddr *)&ServerAddress,sizeof(ServerAddress))<0)
+	{
+		printf("Eroare la trimitere");
+		exit(4);
+	}
+	
+}
 
-		if(S_ISDIR(info.st_mode) && (strcmp(Name,name)==0))
-		{
-			printf("director existent, utilizator vechi\n");
+char * receiveMessage(int i)
+{
+	
+	recv(ClientSocket[i],&smd,sizeof(smd),0);
+	printf("%s has connected\n",smd);
+	return smd;
+	
+}
+
+void commands(int i,char *Name)
+{
+	int sw=1;
+	char command[30];
+	struct stat info;
+	while(sw)
+	{
+		memset(&command,0x00,sizeof(command));
+
+		recv(ClientSocket[i],&command,sizeof(command),0);
+
+		
+
+		if(strcmp(command,"stop")==0)
 			sw=0;
-			if(!(director2=opendir(path)))
+
+		if(strcmp(command,"add")==0)
+		{		printf("add\n");
+			char file[30];
+			memset(&file,0x00,sizeof(file));
+			recv(ClientSocket[i],&file,sizeof(file),0);
+			printf("file= %s\n",file);
+			if(lstat(file,&info)<0)
 			{
-				printf("Eroare la deschiderea directorului 2\n");
-				exit(12);
+			printf("Eroare la functia stat %s\n",file);
+			exit(99);
 			}
-			char *names=malloc(sizeof(char)*50);
-			char *path2=malloc(sizeof(char)*50);
-			while((dir2=readdir(director2))>0)
-			{
-				strcpy(names,dir2->d_name);
-				if(strcmp(names, ".") == 0 || strcmp(names, "..") == 0 )
-					continue;
-				snprintf(path2,49,"%s/%s",path,names);
-				printf("path to files : %s \n",path2);
-				
-				
-				if(lstat(path2,&info2)<0)
+			else
+				if(S_ISREG(info.st_mode))
 				{
-					printf("Eroare la lstat in dir 2\n");
-					exit(13);
-				}
-				if(S_ISREG(info2.st_mode))
-				{ 
-					printf("Adaugare \n");
-					AdaugareFisier(iClient,names);
-					if(!FileAlreadyExistsInAllFiles(allFiles, names))
-						allFiles = AddToAllFiles(allFiles, names);
-
-				}
-			}
-			closedir(director2);
-			free(names);
-			free(path2);
-
-		}
-	}
-	if(sw==1)
-		{
-			printf("Utilizator nou, generam director!\n");
-
-			pid_t child;
-
-			if((child=fork())<0)
-			{
-				printf("Eroare la proces xD\n");
-				exit(112);
-			}else
-			if(child==0)
-			{
-				char *xD=malloc(sizeof(char)*112);
-				snprintf(xD,100,"server/%s",Name);
-				execlp("mkdir","mkdir",xD,NULL);
-			}
-		}
-	closedir(director);
-	free(name);
-	free(path);
-
-	PrintareClient(iClient);
-
-	// receive msj handler | integrated with the former commands(i, Name)
-	while(1){
-		if (disconnectClient) {
-			break;
-		}
-
-		memset(cBuffer, 0, sizeof(cBuffer));
-		int receive = recv(cli->sockfd, cBuffer, 1024, 0);
-
-		if (receive > 0){
-			if(strlen(cBuffer) > 0)
-			{
-				rmNewLine(cBuffer, strlen(cBuffer));
-				printf("%s -> %s\n", cBuffer, cli->Nume);
-
-				if(cBuffer[0] == 'a' && cBuffer[1] == 'd' && cBuffer[2] == 'd')
-				{
-					char file[30];
-					memset(file, 0, sizeof(file));
-					int fileIndex = 0;
-
-					for(int k = 4; k < strlen(cBuffer); k++)
-						file[fileIndex++] = cBuffer[k];
-					// terminator? 
-
-					printf("%s is trying to host a file '%s'\n", Name, file);
-
-					char clientDirFile[71];
-					snprintf(clientDirFile, sizeof(clientDirFile), "server/%s/%s", Name, file);
-
-					AdaugareFisier(iClient, file);
-					if(!FileAlreadyExistsInAllFiles(allFiles, file))
-						allFiles = AddToAllFiles(allFiles, file);
-
-					if(lstat(file,&info)<0)
+					int fd1,fd2;
+					int n;
+					char *buff=malloc(sizeof(char)*1024);
+					if((fd1=open(file,O_RDONLY))<0)
 					{
-						printf("Eroare la functia stat %s\n",file);
-						exit(99);
+						printf("Eroare la deschidere fisier\n");
+						exit(75);
 					}
-						else
-						if(S_ISREG(info.st_mode))
-						{
-								int fd1,fd2;
-								int n;
-								char *buff=malloc(sizeof(char)*1025);
-								if((fd1=open(file,O_RDONLY))<0)
-								{
-									printf("Eroare la deschidere fisier\n");
-									exit(75);
-								}
-								else
-								{	
-									snprintf(buff,71,"server/%s/%s", Name, file);
-
-									if((fd2=open(buff,O_CREAT|O_WRONLY|O_EXCL,S_IRWXU))<0)
-									{
-										printf("Eroare la creare fisier\n");
-										exit(69);
-									}
-
-									while((n=read(fd1,buff,1024)) > 0)
-									{
-										if(write(fd2,buff,n)<0)
-										{
-											printf("Eroare la scrierea in fisier\n");
-											exit(24);
-										}
-									}
-								}
-							printf("File succesfully added.\n");
-							close(fd1);
-							close(fd2);
-							free(buff);
-						}
-				}
-				else
-					if(strcmp(cBuffer, "seeFiles") == 0)
+					else
 					{
-						PrintareAllFiles(allFiles);
+						
+						snprintf(buff,50,"server/%s/%s",Name,file);
 
-				    	char msj[1024], msjAux[20];
-				    	struct node *p = allFiles;
-				    	int c = 0;
+						if((fd2=open(buff,O_CREAT|O_WRONLY|O_EXCL,S_IRWXU))<0)
+						{
+							printf("Eroare la creare fisier\n");
+							exit(69);
+						}
 
-				        while(p != NULL)
-				        {
-				        	if(c == 0)
-				        	{
-				        		strcpy(msj, p->NumeFisier);
-				        		p = p ->urm;
-				        		c = 1;
-				        	}
-				        	else
-				        	{
-				        		strcpy(msjAux, " | ");
-				        		strcat(msjAux, p -> NumeFisier);
-				        		strcat(msj, msjAux);
-				          		p = p -> urm;
-				        	}
-				        }
-	        				send(cli->sockfd, msj, strlen(msj), 0);
-					}				
-			}
-		} else if (receive == 0 || strcmp(cBuffer, "stop") == 0){
-			sprintf(cBuffer, "%s has disconnected\n", cli->Nume);
-			printf("%s", cBuffer);
-			// nu mai tr msj la client ca s-a deconectat, isi tr singur
-			disconnectClient = 1;
-		} else {
-			printf("ERROR: -1\n");
-			disconnectClient = 1;
+						while((n=read(fd1,buff,1024))>0)
+						{
+							if(write(fd2,buff,strlen(buff))<0)
+							{
+								printf("Eroare la scrierea in fisier\n");
+								exit(24);
+							}
+						}
+					}
+					close(fd1);
+					close(fd2);
+					free(buff);
+				}
+
+
+			
 		}
+		printf("%s : %s\n",Name,command);
+		PrintareClient(&DataClient[i]);
 	}
 
-	//
-	close(cli->sockfd);
-	removeFromClientsList(cli->uid);
-	free(cli);
-	nrClients--;
-	pthread_detach(pthread_self());
-	return NULL;
-}	
+}
+
+void * threadClient( void *arg )
+{
+	char Name[25];
+	int i = *((int *) arg);
+	printf("i=%d\n",i);
+	sendMessage("Connected!",i);
+	strcpy(Name,receiveMessage(i));
+	newUser(Name,DataClient,i);
+	DataClient[i]=*CreereClient(Name);
+	PrintareClient(&DataClient[i]);
+	commands(i,Name);
+	printf("%s has disconnected!\n",Name);
+	pthread_exit(NULL);
+}
 
 void WaitForOtherClients()
 {		
-	pthread_t threadID;
-	struct sockaddr_in client_addr;
-	int connfd = 0;
-
+	pthread_t thread[MAX_SIZE];
+	int i=0;
 	while(1)
 	{
-		socklen_t clientLen = sizeof(client_addr);
-		if( (connfd = accept(ServerSocket,(struct sockaddr*)&client_addr, &clientLen)) == -1)
-			printf("Accepted failed in WaitForOtherClient()\n");
+		if( (ClientSocket[i] = accept(ServerSocket,NULL,NULL)) == -1)
+			printf("Accepted failed at %d",i);
 		else
-			{			
-					// creeare client
-
-					ClientData *cli = (ClientData *)malloc(sizeof(ClientData));
-					cli->address = &client_addr;
-					cli->sockfd = connfd;
-					cli->uid = uid++;
-					cli->Fisier = NULL;
-					addToClientsList(cli);
-
-					if(pthread_create(&threadID,NULL,&threadClient,(void *)cli) !=0 )
-						printf("Failed to create thread\n");
-									
+			{		
+					if(pthread_create(&thread[i],NULL,threadClient,&i) !=0 )
+					printf("Failed to create thread\n");
+					
+				
 			}
-				sleep(1);
+		printf("%d",i);
+		
+		
 	}
 }
 
 void createConnection()
 {
-	int option = 1;
+	DataClient=malloc(sizeof(struct ClientData)*MAX_SIZE);
 	ServerSocket = socket(AF_INET,SOCK_STREAM,0);
 	ServerAddress.sin_family = AF_INET;
-	ServerAddress.sin_port = htons(port);
-	ServerAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
-	// ignore signals from pipes
-	signal(SIGPIPE, SIG_IGN);
-		if(setsockopt(ServerSocket, SOL_SOCKET,(SO_REUSEPORT | SO_REUSEADDR),(char*)&option,sizeof(option)) < 0)
-		{
-			printf("Eroare la setsockopt\n");
-			exit(281);
-		}
-
-	if(bind(ServerSocket,(struct sockaddr *)&ServerAddress,sizeof(ServerAddress)) < 0)
-	{
-		printf("Eroare la socket binding\n");
-		exit(282);
-	}
-
-	if(listen(ServerSocket,10) < 0)
-	{
-		printf("Eroare la socket listening\n");
-		exit(283);
-	}
-
+	ServerAddress.sin_port = htons(2424);
+	ServerAddress.sin_addr.s_addr = INADDR_ANY;
+	bind(ServerSocket,(struct sockaddr *)&ServerAddress,sizeof(ServerAddress));
+	listen(ServerSocket,5);
 	WaitForOtherClients();
+	
 }
+
+
+
+
 
 int main()
 {

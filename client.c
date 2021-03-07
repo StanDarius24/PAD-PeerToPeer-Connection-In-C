@@ -50,6 +50,7 @@ void holdconnection()
 	while(sw)
 	{	
 		scanf("%s",command);
+		printf("%s\n",command);
 		send(NetworkSocket,command,strlen(command),0);
 		
 		if(strcmp(command,"stop")==0)
@@ -74,6 +75,8 @@ void holdconnection()
 			
 
 		}
+
+		
 		memset(&command,0x00,sizeof(command));
 
 
@@ -84,6 +87,7 @@ void holdconnection()
 
 int main()
 {
+	
 	Autentificare();
 	createConnection();
 	holdconnection();

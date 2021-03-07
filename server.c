@@ -15,20 +15,21 @@
 #include "disc.h"
 #define MAX_SIZE 10
 
-// chmod 700 server.c | gcc -Wall -D_REENTRANT -pthread -o sv server.c
+// chmod 700 server.c | gcc -Wall -D_REENTRANT -pthread -o sv server.c structura.o disc.o
 int ServerSocket;
 struct sockaddr_in ServerAddress;
 int ClientSocket[MAX_SIZE];
 char smd[30];
 struct ClientData *DataClient;
-
+int jk=0;
+int port=2424;
 
 void sendMessage(char *ServerMessage,int i)
 {	
 	
-	if(sendto(ClientSocket[i],ServerMessage,strlen(ServerMessage),0,(struct sockaddr *)&ServerAddress,sizeof(ServerAddress))<0)
+	if(send(ClientSocket[i],ServerMessage,strlen(ServerMessage),0)<0)
 	{
-		printf("Eroare la trimitere");
+		printf("Eroare la trimitere Client socket %d = %d",ClientSocket[i],i);
 		exit(4);
 	}
 	
@@ -110,8 +111,8 @@ void commands(int i,char *Name)
 
 			
 		}
-		printf("%s : %s\n",Name,command);
-		PrintareClient(&DataClient[i]);
+		printf("%s : %s sw=%d\n",Name,command,sw);
+		//PrintareClient(&DataClient[i]);
 	}
 
 }
@@ -208,9 +209,11 @@ void newUser(char *Name, struct ClientData * DataClient,int i)
 }
 
 void * threadClient( void *arg )
-{
+{	
+
 	char Name[25];
 	int i = *((int *) arg);
+	jk++;
 	printf("i=%d\n",i);
 	sendMessage("Connected!",i);
 	strcpy(Name,receiveMessage(i));
@@ -225,22 +228,26 @@ void * threadClient( void *arg )
 void WaitForOtherClients()
 {		
 	pthread_t thread[MAX_SIZE];
-	int i=0;
+	
 	while(1)
 	{
-		if( (ClientSocket[i] = accept(ServerSocket,NULL,NULL)) == -1)
-			printf("Accepted failed at %d",i);
+		if( (ClientSocket[jk] = accept(ServerSocket,NULL,NULL)) == -1)
+			printf("Accepted failed at %d",jk);
 		else
 			{		
-					if(pthread_create(&thread[i],NULL,threadClient,&i) !=0 )
-					printf("Failed to create thread\n");
 					
+					if(pthread_create(&thread[jk],NULL,threadClient,&jk) !=0 )
+					printf("Failed to create thread\n");
+									
 				
 			}
-		printf("%d",i);
+		printf("%d",jk);
 		
 		
 	}
+	for(int j=0;j<jk;j++)
+	pthread_join(thread[j],NULL);	
+
 }
 
 void createConnection()
@@ -248,7 +255,7 @@ void createConnection()
 	DataClient=malloc(sizeof(struct ClientData)*MAX_SIZE);
 	ServerSocket = socket(AF_INET,SOCK_STREAM,0);
 	ServerAddress.sin_family = AF_INET;
-	ServerAddress.sin_port = htons(2424);
+	ServerAddress.sin_port = htons(port);
 	ServerAddress.sin_addr.s_addr = INADDR_ANY;
 	bind(ServerSocket,(struct sockaddr *)&ServerAddress,sizeof(ServerAddress));
 	listen(ServerSocket,5);
@@ -262,6 +269,7 @@ void createConnection()
 
 int main()
 {
+	
 	checkdir();
 	createConnection();
 	return 0;

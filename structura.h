@@ -15,4 +15,7 @@ node * AddFile(node *Nod,char *filename);
 ClientData *CreereClient(char *name);
 ClientData *AdaugareFisier(ClientData *Client,char *numeFisier);
 void PrintareClient(ClientData *Client);
+void PrintareAllFiles(node *allFiles);
+int FileAlreadyExistsInAllFiles(node *allFiles, char *filename);
+node * AddToAllFiles(node *allFiles, char *filename);
 #endif

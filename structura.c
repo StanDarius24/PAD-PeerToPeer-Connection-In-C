@@ -65,3 +65,45 @@ void PrintareClient(ClientData *Client)
     parcurgereFisiere(Client->Fisier);
     printf("\n");
 }
+
+
+void PrintareAllFiles(node *allFiles)
+{
+    parcurgereFisiere(allFiles);
+    printf("\n");
+}
+
+int FileAlreadyExistsInAllFiles(node *allFiles, char *filename)
+{
+    if(allFiles == NULL)
+        return 0;
+    while(allFiles != NULL)
+    {
+        if(strcmp(allFiles->NumeFisier, filename) == 0)
+            return 1;
+        allFiles = allFiles -> urm;
+    }
+        return 0;
+}
+
+node *AddToAllFiles(node *allFiles, char *filename)
+{
+    if(allFiles == NULL)
+    {
+        struct node *nodInt = malloc(sizeof(struct node));
+        strcpy(nodInt->NumeFisier, filename);
+        allFiles = nodInt;
+        allFiles->urm = NULL;
+        return allFiles;
+    } 
+
+    struct node *nodInt = malloc(sizeof(struct node));
+    strcpy(nodInt->NumeFisier, filename);
+    nodInt->urm = NULL;
+    struct node *nodParcurge = allFiles;
+
+    while(nodParcurge->urm != NULL)
+        nodParcurge = nodParcurge->urm;
+    nodParcurge->urm = nodInt;
+    return allFiles;
+}

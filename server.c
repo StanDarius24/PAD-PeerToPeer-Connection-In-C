@@ -239,7 +239,7 @@ void newUser(char *Name, struct ClientData * DataClient,int i)
 					continue;
 				snprintf(path2,49,"%s/%s",path,names);
 				printf("path to files : %s \n",path2);
-				DataClient[i]=*AdaugareFisier(&DataClient[i],names);
+				
 				
 				if(lstat(path2,&info2)<0)
 				{
@@ -303,6 +303,7 @@ void * threadClient( void *arg )
 	PrintareClient(&DataClient[i]);
 	commands(i,Name);
 	printf("%s has disconnected!\n",Name);
+	sendMessage("stop",i);
 	pthread_exit(NULL);
 }
 

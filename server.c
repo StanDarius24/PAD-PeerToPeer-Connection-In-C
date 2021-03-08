@@ -5,29 +5,18 @@
 #include<netinet/in.h>
 #include<string.h>
 #include<pthread.h>
-#include <arpa/inet.h>
+#include<arpa/inet.h>
 #include<sys/stat.h>
 #include<unistd.h>
 #include<signal.h>
 #include<fcntl.h>
 #include<string.h>
-#include <dirent.h>
-#include <limits.h>
+#include<dirent.h>
+#include<limits.h>
 #define MAX_SIZE 10
 #define MAX_CLIENTS 20
 
-typedef struct node{
-    char NumeFisier[25];
-    struct node *urm;
-}node;	
-
-typedef struct ClientData{
-	struct sockaddr_in address;
-	int sockfd;
-	int uid;
-    char Nume[32];
-    struct node *Fisier;    
-}ClientData;
+#include "structura.h"
 
 // chmod 700 server.c | gcc -Wall -D_REENTRANT -pthread -o sv server.c structura.o disc.o
 int ServerSocket;
@@ -44,38 +33,6 @@ ClientData *clients[MAX_CLIENTS];
 
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-node *CreeateNode(char *fisier)
-{
-    struct node *Nod=malloc(sizeof(struct node));
-    strcpy(Nod->NumeFisier,fisier);
-    Nod->urm=NULL;
-    return Nod;
-}
-
-node * AddFile(node *Nod,char *filename)
-{
-    struct node *Nodint=CreeateNode(filename);
-    struct node *p=Nod;
-    while(p->urm !=NULL)
-        p=p->urm;
-    p->urm=Nodint;
-    return Nod;
-}
-
-void parcurgereFisiere(node *Nod)
-{
-    if(Nod!=NULL)
-	{
-	    printf("{ ");
-	    while(Nod->urm!=NULL)
-	    {
-	        printf("%s  -> ",Nod->NumeFisier);
-	        Nod=Nod->urm;
-	    }
-		    printf("%s }.",Nod->NumeFisier);
-		    printf("\n");
-	}
-}
 
 
 void AdaugareFisier(int iClient,char *numeFisier)
@@ -99,79 +56,8 @@ void PrintareClient(int iClient)
 	    printf("\n");
 }
 
-void PrintareAllFiles(node *allFiles)
-{
-	if(allFiles != NULL)
-    {
-    	parcurgereFisiere(allFiles);
-        printf("\n");
-    } else
-    		printf("0 files found\n");
-}
 
-int FileAlreadyExistsInAllFiles(node *allFiles, char *filename)
-{
-    if(allFiles == NULL)
-        return 0;
-    while(allFiles != NULL)
-    {
-        if(strcmp(allFiles->NumeFisier, filename) == 0)
-            return 1;
-        allFiles = allFiles -> urm;
-    }
-        return 0;
-}
 
-node *AddToAllFiles(node *allFiles, char *filename)
-{
-    if(allFiles == NULL)
-    {
-        struct node *nodInt = malloc(sizeof(struct node));
-        strcpy(nodInt->NumeFisier, filename);
-        allFiles = nodInt;
-        allFiles->urm = NULL;
-        return allFiles;
-    } 
-
-    struct node *nodInt = malloc(sizeof(struct node));
-    strcpy(nodInt->NumeFisier, filename);
-    nodInt->urm = NULL;
-    struct node *nodParcurge = allFiles;
-
-    while(nodParcurge->urm != NULL)
-        nodParcurge = nodParcurge->urm;
-    nodParcurge->urm = nodInt;
-    return allFiles;
-}
-
-void checkdir()
-{
-	struct stat info;
-	int fd;
-	if(lstat("server",&info)<0)
-	{
-		printf("director inexistent, acesta se creaza\n");
-		mkdir("server",0777);
-		system("touch server/clientslist");
-	}
-	else
-		if(S_ISDIR(info.st_mode))
-		{
-			printf("director existent\n");	
-			if(( fd = open("server/clientslist",O_CREAT | O_EXCL | O_WRONLY, S_IRWXU))<0)
-			{
-				printf("Fisier existent\n");
-				close(fd);
-			}
-			else
-			{
-				system("touch server/clientslist");
-			}
-
-			
-		}
-
-}
 
 void flushStdout() {
     printf("\r%s", "> ");
@@ -182,14 +68,14 @@ void rmNewLine (char* arr, int length) {
   int i;
   for (i = 0; i < length; i++) { // trim \n
     if (arr[i] == '\n') {
-      arr[i] = '\0';
+      arr[i] = '\0';		
       break;
     }
   }
 }
 
 void addToClientsList(ClientData *cl){
-	pthread_mutex_lock(&clients_mutex);
+	//pthread_mutex_lock(&clients_mutex);
 
 	for(int i=0; i < MAX_CLIENTS; ++i){
 		if(!clients[i]){
@@ -197,11 +83,11 @@ void addToClientsList(ClientData *cl){
 			break;
 		}
 	}
-	pthread_mutex_unlock(&clients_mutex);
+	//pthread_mutex_unlock(&clients_mutex);
 }
 
 void removeFromClientsList(int uid){
-	pthread_mutex_lock(&clients_mutex);
+//	pthread_mutex_lock(&clients_mutex);
 
 	for(int i=0; i < MAX_CLIENTS; ++i){
 		if(clients[i]){
@@ -212,12 +98,12 @@ void removeFromClientsList(int uid){
 		}
 	}
 
-	pthread_mutex_unlock(&clients_mutex);
+	//pthread_mutex_unlock(&clients_mutex);
 }
 
 // sends message back to conn. sender
 void sendMessageToClient(char *s, int uid){
-	pthread_mutex_lock(&clients_mutex);
+	//pthread_mutex_lock(&clients_mutex);
 
 	for(int i=0; i<MAX_CLIENTS; ++i){
 		if(clients[i]){
@@ -228,7 +114,7 @@ void sendMessageToClient(char *s, int uid){
 			}
 		}
 	}
-	pthread_mutex_unlock(&clients_mutex);
+//	pthread_mutex_unlock(&clients_mutex);
 }
 
 void * threadClient(void *arg)
@@ -487,7 +373,7 @@ void WaitForOtherClients()
 					// creeare client
 
 					ClientData *cli = (ClientData *)malloc(sizeof(ClientData));
-					cli->address = client_addr;
+					cli->address = &client_addr;
 					cli->sockfd = connfd;
 					cli->uid = uid++;
 					cli->Fisier = NULL;

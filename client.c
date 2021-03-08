@@ -5,30 +5,173 @@
 #include<netinet/in.h>
 #include<string.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
+#include <signal.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include<pthread.h>
 int NetworkSocket;
 struct sockaddr_in ServerAddress,ServerAddressp;
 int ConnectionStatus;
 char Name[25];
+volatile sig_atomic_t disconnectClient = 0;
+#define LENGTH 1024
+
+void printMyFiles(char *directorName)
+{	
+	DIR *director;
+	if((director = opendir(directorName)) == NULL)
+	{
+		printf("Eroare la opendir, nu s-a putut deschide directorul\n");
+		exit(500);
+	}
+
+	struct dirent *intrareDirector;
+	while((intrareDirector = readdir(director)) != NULL)
+	{
+		char numeIntrare[30];
+		strcpy(numeIntrare, intrareDirector->d_name);
+
+		if(strcmp(numeIntrare, "..")!=0 && strcmp(numeIntrare, ".")!=0)
+		{
+			char fullPath[50];
+			snprintf(fullPath, sizeof(fullPath), "%s/%s", directorName, numeIntrare);
+
+			struct stat buf;
+			if(lstat(fullPath, &buf) < 0)
+			{
+				printf("Eroare la lstat (fullPath)\n");
+				exit(501);
+			}
+
+			if(S_ISREG(buf.st_mode))
+			{
+				printf("%s |", numeIntrare);
+			}
+		}
+	}
+		printf("\n"); 
+}
+
 void Autentificare()
 {
 	printf("Welcome young padawan!\n\n");
 	printf("We are trying to connect to the server.\n\n");
 	printf("But wait, who are u???\n");
 	printf("Enter name: ");
-	scanf("%s",Name);
+	fgets(Name, 32, stdin); // replace in all files with scanf after fin. code(onyl 1 word commands allowed, else #unknown#)
+  	if(Name[strlen(Name) - 1] == '\n')
+  		Name[strlen(Name) - 1] = '\0';
 }
 
-void createConnection()
+void rmNewLine (char* arr, int length) {
+  int i;
+  for (i = 0; i < length; i++) { // trim \n
+    if (arr[i] == '\n') {
+      arr[i] = '\0';
+      break;
+    }
+  }
+}
+
+void stopClient(int sig) {
+    disconnectClient = 1;
+}
+
+void flushStdout() {
+  printf("%s", "> ");
+  fflush(stdout);
+}
+
+void sendMessageHandler() {
+  char message[LENGTH] = {};
+	char buffer[LENGTH + 32] = {};
+	int fileFlag = 0;
+	printf("Type 'help' for help\n");
+
+  while(1) {
+  	fileFlag = 0;
+  	flushStdout();
+    fgets(message, LENGTH, stdin);
+   	if(message[strlen(message) - 1] == '\n')
+  		message[strlen(message) - 1] = '\0';
+
+    if (strcmp(message, "stop") == 0) 
+			break;
+
+	if(strcmp(message, "help") == 0)
+		printf("Valid commands: stop, add file.extension, seeFiles, seeMyFiles\n");
+
+	if(message[0] == 'a' && message[1] == 'd' && message[2] == 'd')
+	{
+		char file[30];
+		int fileIndex = 0;
+
+		for(int k = 4; k < strlen(message); k++)
+			file[fileIndex++] = message[k];
+
+		char clientDirFile[100];
+		snprintf(clientDirFile, 100, "server/%s/%s", Name, file);
+
+		int e1, e2;
+		// verify if the file already exists OR if it exists at all
+			if((e1 = access(file, F_OK)) != 0)
+				printf("Error: File %s doesn't exist or its path is invalid.\n", file);
+			else
+				if((e2 = access(clientDirFile, F_OK)) == 0)
+					printf("Error: File %s already exists in your dir = server/%s.\n", file, Name);
+							
+		if(e1 == 1 || e2 == 0)
+			fileFlag = 1;
+	}
+
+	if(strcmp(message, "seeFiles") == 0)
+	{
+		printf("Showing all avaiable files...\n");
+	}
+
+	if(strcmp(message, "seeMyFiles") == 0)
+	{
+		printf("Showing your files...\n");
+		char myDir[33];
+		snprintf(myDir, sizeof(myDir), "server/%s", Name);
+		printMyFiles(myDir);
+	}
+		if(!fileFlag)
+			send(NetworkSocket, message, strlen(message), 0);
+
+		bzero(message, LENGTH);
+		bzero(buffer, LENGTH + 32);
+  }
+
+  stopClient(2);
+}
+
+void receiveMessageHandler() {
+	char message[LENGTH] = {};
+  while (1) {
+		int receive = recv(NetworkSocket, message, LENGTH, 0);
+    if (receive > 0) {
+      printf("%s\n", message);
+      flushStdout();
+    } else if (receive == 0) {
+			break;
+    } else {
+			// -1
+		}
+		memset(message, 0, sizeof(message));
+  }
+}
+
+void createAndHoldConnection()
 {
 	char ServerResponse[11];
 	NetworkSocket=socket(AF_INET,SOCK_STREAM,0);
 
 	ServerAddress.sin_family = AF_INET;
 	ServerAddress.sin_port = htons(2424);
-	ServerAddress.sin_addr.s_addr=INADDR_ANY;
+	ServerAddress.sin_addr.s_addr=inet_addr("127.0.0.1");
 
 	ConnectionStatus = connect(NetworkSocket, (struct sockaddr *) &ServerAddress,sizeof(ServerAddress));
 	if(ConnectionStatus == -1)
@@ -36,188 +179,37 @@ void createConnection()
 		printf("Connection failed!\n");
 		exit(1);
 	}
-	
+	send(NetworkSocket,Name,sizeof(Name),0);
 	recv(NetworkSocket,&ServerResponse,sizeof(ServerResponse),0);
 	printf("%s \n",ServerResponse);
-	send(NetworkSocket,Name,sizeof(Name),0);
 
-}
-
-
-/*
-file.name
-port
-size
-order
-number
-
-exemple
-
-cat.mp4
-2425
-1255
-3
-5
-
-=> dimensiune 1255 , 5 persoane care trimit
-1255/5 = 251
-primul   -> 0   -> 251
-al 2-lea -> 251 -> 502
-al 3-lea -> 502 -> 753
-al 4-lea -> 753 -> 1004
-al 5-lea -> 1004-> 1255
-
-Ordinul 3 => eu o sa trimit prin portul 2425 din fisierul cat.mp4 de la 502 pana la 753.
-
-*/
-
-void * sendFiles(void *arg)
-{
-	char Datatypefiles[50];
-	char denumire[30];
-	int port;
-	int size;
-	int order;
-	int number;
-	recv(NetworkSocket,&Datatypefiles,sizeof(Datatypefiles),0);
-
-	if(strcmp(Datatypefiles,"stop"))
-		pthread_exit(NULL);
-	
-	char *p = strtok(Datatypefiles,"\n");
-	strcpy(denumire,p);
-	p=strtok(NULL,"\n");
-	port=atoi(p);
-	p=strtok(NULL,"\n");
-	size=atoi(p);
-	p=strtok(NULL,"\n");
-	order=atoi(p);
-	p=strtok(NULL,"\n");
-	number=atoi(p);
-	int dim=size/number+1;
-
-
-	int fd;
-
-	char *path=malloc(sizeof(char)*200);
-	struct stat info;
-	snprintf(path,199,"server/%s/%s",Name,denumire);
-
-	if((fd=open(path,O_RDONLY |S_IRUSR))<0)
-	{
-		printf("Eroare la deschidere fisier\n");
-		exit(4);
+	pthread_t send_msg_thread;
+  	if(pthread_create(&send_msg_thread, NULL, (void *) sendMessageHandler, NULL) != 0){
+		printf("ERROR: pthread\n");
+   		exit(300);
 	}
 
-	if(fstat(fd,&info)<0)
-	{
-		printf("Eroare la fc stat\n");
-		exit(69);
+	pthread_t recv_msg_thread;
+  if(pthread_create(&recv_msg_thread, NULL, (void *) receiveMessageHandler, NULL) != 0){
+		printf("ERROR: pthread\n");
+		exit(301);
 	}
 
-	lseek(fd,(info.st_size/number*order),SEEK_CUR);
-
-	char *buff=malloc(sizeof(char)*(dim+1));
-
-	int n;
-	if((n=read(fd,buff,dim))<0)
+	while(1)
 	{
-		printf("Eroare la citirea din fisier\n");
-		exit(420);
-	}
-
-	else
-	{
-
-	int PeerSocket;
-
-	PeerSocket=socket(AF_INET,SOCK_STREAM,0);
-
-	ServerAddressp.sin_family = AF_INET;
-	ServerAddressp.sin_port = htons(port);
-	ServerAddressp.sin_addr.s_addr=INADDR_ANY;
-
-	ConnectionStatus = connect(PeerSocket, (struct sockaddr *) &ServerAddressp,sizeof(ServerAddressp));
-	if(ConnectionStatus == -1)
-	{
-		printf("Connection failed!\n");
-		exit(1);
-	}
-
-	send(PeerSocket,buff,strlen(buff),0);
-
-	close(fd);
-	free(buff);
-	pthread_exit(NULL);
-}
-}
-
-void holdconnection()
-{
-	char command[30];
-	int sw=1;
-	pthread_t thread;
-	if(pthread_create(&thread,NULL,sendFiles,NULL)!=0)
-	{
-		printf("Failed to create thread\n");
-	}
-	printf("type help for help\n");
-
-	while(sw)
-	{	
-		printf("?> ");
-		scanf("%s",command);
-		send(NetworkSocket,command,strlen(command),0);
-
-		if(strcmp(command,"help")==0)
-				printf("Valid commands: stop, add, seeFiles\n"); 
-
-		if(strcmp(command,"stop")==0)
-				sw=0; 
-
-		if(strcmp(command,"add")==0)
+		if(disconnectClient)
 		{
-			char file[30];
-
-			printf("Insert file path: ");
-			scanf("%s",file);
-			send(NetworkSocket,file,strlen(file),0);
-
-			char clientDirFile[100];
-			snprintf(clientDirFile, 100, "server/%s/%s", Name, file);
-
-			// verify if the file already exists OR if it exists at all, server crashes if it already exists and a client tries to add it again
-				if(access(file, F_OK) != 0)
-					printf("Error: File %s doesn't exist or its path is invalid.\n", file);
-				else
-					if(access(clientDirFile, F_OK) == 0)
-						printf("Error: File %s already exists in server/%s.\n", file, Name);
+			printf("You have disconnected!\n");
+			break;
 		}
-
-		if(strcmp(command,"seeFiles")==0) 
-		{
-			printf("Showing available files...\n");
-			char msj[1024];
-			int msjLength = recv(NetworkSocket, &msj, sizeof(msj), 0);
-			msj[msjLength] = '\0';
-			printf("%s\n", msj);
-		}
-
-		memset(&command,0x00,sizeof(command));
-
-
 	}
-
-	pthread_join(thread,NULL);
-
+		close(NetworkSocket);
 }
-
 
 int main()
 {
 	
 	Autentificare();
-	createConnection();
-	holdconnection();
+	createAndHoldConnection();
 	return 0;
 }

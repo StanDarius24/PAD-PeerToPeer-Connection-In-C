@@ -2,7 +2,19 @@
 
 #include<stdio.h>
 #include<stdlib.h>
+#include<sys/socket.h>
+#include<sys/types.h>
+#include<netinet/in.h>
 #include<string.h>
+#include<pthread.h>
+#include<arpa/inet.h>
+#include<sys/stat.h>
+#include<unistd.h>
+#include<signal.h>
+#include<fcntl.h>
+#include<string.h>
+#include <dirent.h>
+#include <limits.h>
 
 
 
@@ -27,50 +39,55 @@ node * AddFile(node *Nod,char *filename)
 void parcurgereFisiere(node *Nod)
 {
     if(Nod!=NULL)
-{
-    printf("{ ");
-    while(Nod->urm!=NULL)
     {
-        printf("%s  -> ",Nod->NumeFisier);
-        Nod=Nod->urm;
+        printf("{ ");
+        while(Nod->urm!=NULL)
+        {
+            printf("%s  -> ",Nod->NumeFisier);
+            Nod=Nod->urm;
+        }
+            printf("%s }.",Nod->NumeFisier);
+            printf("\n");
     }
-    printf("%s }.",Nod->NumeFisier);
-    printf("\n");
-}
 }
 
-ClientData *CreereClient(char *name)
+void checkdir()
 {
-    struct ClientData *Client = malloc(sizeof(struct ClientData));
-    strcpy(Client->Nume,name);
-    Client->Fisier=NULL;
-    return Client;
-}
-
-ClientData *AdaugareFisier(ClientData *Client,char *numeFisier)
-{  
-   
-    if(Client->Fisier==NULL)
+    struct stat info;
+    int fd;
+    if(lstat("server",&info)<0)
     {
-        Client->Fisier=CreeateNode(numeFisier);
+        printf("director inexistent, acesta se creaza\n");
+        mkdir("server",0777);
+        system("touch server/clientslist");
     }
     else
-    Client->Fisier=AddFile(Client->Fisier,numeFisier);
-    return Client;
-}
+        if(S_ISDIR(info.st_mode))
+        {
+            printf("director existent\n");  
+            if(( fd = open("server/clientslist",O_CREAT | O_EXCL | O_WRONLY, S_IRWXU))<0)
+            {
+                printf("Fisier existent\n");
+                close(fd);
+            }
+            else
+            {
+                system("touch server/clientslist");
+            }
 
-void PrintareClient(ClientData *Client)
-{
-    printf("\n%s\n",Client->Nume);
-    parcurgereFisiere(Client->Fisier);
-    printf("\n");
-}
+            
+        }
 
+}
 
 void PrintareAllFiles(node *allFiles)
 {
-    parcurgereFisiere(allFiles);
-    printf("\n");
+    if(allFiles != NULL)
+    {
+        parcurgereFisiere(allFiles);
+        printf("\n");
+    } else
+            printf("0 files found\n");
 }
 
 int FileAlreadyExistsInAllFiles(node *allFiles, char *filename)

@@ -11,6 +11,7 @@
 #include<string.h>
 #include <dirent.h>
 #include <limits.h>
+#include <sys/wait.h>
 #include "structura.h"
 #include "disc.h"
 #define MAX_SIZE 10
@@ -24,14 +25,14 @@ struct ClientData *DataClient;
 int jk=0;
 int port=2424;
 struct node *allFiles;
-
+pid_t child[MAX_SIZE];
 void sendMessage(char *ServerMessage,int i)
 {	
-	
-	if(send(ClientSocket[i],ServerMessage,strlen(ServerMessage),0)<0)
+
+	if(send(ClientSocket[i],ServerMessage,strlen(ServerMessage)+1,0)<0)
 	{
-		printf("Eroare la trimitere Client socket %d = %d",ClientSocket[i],i);
-		exit(4);
+		printf("Eroare la trimitere Client socket %d ",i);
+		//exit(4);
 	}
 	
 }
@@ -100,7 +101,7 @@ void commands(int i,char *Name)
 		recv(ClientSocket[i],&command,sizeof(command),0);
 
 		
-		printf("%s : %s\n",Name,command);
+		printf("%s : %s val=%d\n",Name,command,i);
 		if(strcmp(command,"stop")==0)
 			sw=0;
 
@@ -189,7 +190,7 @@ void commands(int i,char *Name)
 	          		p = p -> urm;
 	        	}
 	        }
-	        	send(ClientSocket[i], msj, strlen(msj), 0);
+	        	send(ClientSocket[i], msj, strlen(msj)+1, 0);
 		}
 		
 		
@@ -289,46 +290,61 @@ void newUser(char *Name, struct ClientData * DataClient,int i)
 	free(path);
 }
 
-void * threadClient( void *arg )
+void threadClient( int i )
 {	
 
 	char Name[25];
-	int i = *((int *) arg);
+	
 	jk++;
-	printf("i=%d\n",i);
-	sendMessage("Connected!",i);
+	printf("i=%d jk=%d\n",i,jk);
 	strcpy(Name,receiveMessage(i));
+	sendMessage("Connected!",i);	
 	DataClient[i]=*CreereClient(Name);
 	newUser(Name,DataClient,i);
 	PrintareClient(&DataClient[i]);
 	commands(i,Name);
 	printf("%s has disconnected!\n",Name);
 	sendMessage("stop",i);
-	pthread_exit(NULL);
+	exit(0);
+	
 }
 
 void WaitForOtherClients()
 {		
-	pthread_t thread[MAX_SIZE];
 	
+	socklen_t addrsize = sizeof ServerAddress;
 	while(1)
 	{
-		if( (ClientSocket[jk] = accept(ServerSocket,NULL,NULL)) == -1)
+		if( (ClientSocket[jk] = accept(ServerSocket,(struct sockaddr *)&ServerAddress,&addrsize)) == -1)
 			printf("Accepted failed at %d",jk);
 		else
 			{		
+					printf("A intrat\n");
 					
-					if(pthread_create(&thread[jk],NULL,threadClient,&jk) !=0 )
-					printf("Failed to create thread\n");
-									
+					if((child[jk]=fork())<0)
+					{
+						printf("Eroare la creere proces\n");
+						exit(5);
+					}
+					else
+						if(child[jk] ==0)
+							threadClient(jk);
+						else
+							{jk++;
+						WaitForOtherClients();
+						for(int j=0;j<jk;j++)
+						{	int status;
+							wait(&status);
+ 							printf("Child ended with code %d\n", WEXITSTATUS(status));}
+					}						
 				
 			}
-		printf("%d",jk);
+		
+		
 		
 		
 	}
-	for(int j=0;j<jk;j++)
-	pthread_join(thread[j],NULL);	
+		
 
 }
 

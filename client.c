@@ -37,10 +37,12 @@ void createConnection()
 		exit(1);
 	}
 	
+	
+	sleep(1);
+	send(NetworkSocket,Name,sizeof(Name)+1,0);
+	
 	recv(NetworkSocket,&ServerResponse,sizeof(ServerResponse),0);
 	printf("%s \n",ServerResponse);
-	send(NetworkSocket,Name,sizeof(Name),0);
-
 }
 
 
@@ -144,7 +146,7 @@ void * sendFiles(void *arg)
 		exit(1);
 	}
 
-	send(PeerSocket,buff,strlen(buff),0);
+	send(PeerSocket,buff,strlen(buff)+1,0);
 
 	close(fd);
 	free(buff);
@@ -167,7 +169,7 @@ void holdconnection()
 	{	
 		printf("?> ");
 		scanf("%s",command);
-		send(NetworkSocket,command,strlen(command),0);
+		send(NetworkSocket,command,strlen(command)+1,0);
 
 		if(strcmp(command,"help")==0)
 				printf("Valid commands: stop, add, seeFiles\n"); 
@@ -181,7 +183,7 @@ void holdconnection()
 
 			printf("Insert file path: ");
 			scanf("%s",file);
-			send(NetworkSocket,file,strlen(file),0);
+			send(NetworkSocket,file,strlen(file)+1,0);
 
 			char clientDirFile[100];
 			snprintf(clientDirFile, 100, "server/%s/%s", Name, file);

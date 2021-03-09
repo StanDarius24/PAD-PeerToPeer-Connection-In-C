@@ -434,7 +434,7 @@ void * threadClient(void *arg)
 							
 								
 							
-							sleep(1);
+							sleep(5);
 							
 						}
 						free(scwc);

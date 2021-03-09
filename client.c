@@ -148,13 +148,13 @@ void sendMessageHandler() {
 
 		printf("file=");
 		fgets(message, LENGTH, stdin);
-		strcpy(f,message);
+		
 
 		 fileFlag=1;
 
 		if(message[strlen(message) - 1] == '\n')
   		message[strlen(message) - 1] = '\0';
-  		
+  		strcpy(f,message);
   		send(NetworkSocket, message, strlen(message), 0);
 
   		char *prs=malloc(sizeof(char)*LENGTH);

@@ -223,52 +223,64 @@ void receiveMessageHandler() {
     	char prs[LENGTH]={};
     	
     	int portnumber;
-    	char *buff=malloc(sizeof(char)*LENGTH);
+    	char *buff=malloc(sizeof(char)*5000);
 
 		
-		recv(NetworkSocket,prs,LENGTH,0);
+		if(recv(NetworkSocket,prs,LENGTH,0)<0)
+		{
+			printf("eroare la trimitere spre network\n");
+			exit(51);
+		}
 		printf("%s\n",prs);
 		portnumber=atoi(prs);
 		memset(prs,0x00,LENGTH);
-
+		int opt=1;
     	int PeerConection =socket(AF_INET,SOCK_STREAM,0);
     	struct sockaddr_in PeerAddress;
-
+    	 if (setsockopt(PeerConection, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) 
+  			  { 
+   				  printf("setsockopt"); 
+    		    exit(45); 
+ 			   }
     	PeerAddress.sin_family = AF_INET;
     	PeerAddress.sin_port = htons(portnumber);
     	PeerAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
-    	printf("Inainte de bind\n");
+    	
     	if(bind(PeerConection,(struct sockaddr *)&PeerAddress,sizeof(PeerAddress)) < 0)
 		{
 			printf("Eroare la socket binding\n");
 			exit(282);
 		}
-		printf("Inainte de listen\n");
-		if(listen(PeerConection,10) < 0)
+		
+		if(listen(PeerConection,3) < 0)
 		{
 			printf("Eroare la socket listening\n");
 			exit(283);
 		}
-		struct sockaddr_in client_addr;
-		socklen_t clientLen = sizeof(client_addr);
-		printf("Inainte de accept\n");
-		if( accept(PeerConection,NULL, NULL) == -1)
+		int newsocket;
+		
+		if( (newsocket=accept(PeerConection,NULL, NULL)) == -1)
 		{
 			printf("Eroare la acceptare!\n");
 			exit(43);
 		}
-			printf("E la recv\n");
+			
 			int n;
-    	n=recv(PeerConection,buff,sizeof(buff),0);
-    	printf("e mai mare ca 0 returnu la recv\n");
-    	printf("%s -buff nr = %d\n",buff,n);
-		if(write(fd,buff,n)<0)
-		{
-			printf("Eroare la scriere");
-			exit(34);
-		}
-		printf("buffer gol\n");
+
+    	while((n=recv(newsocket,buff,sizeof(buff),0))>0)
+    	{
+    		printf("%s -buff nr = %d\n",buff,n);
+			if(write(fd,buff,n)<0)
+			{
+				printf("Eroare la scriere");
+				exit(34);
+			}
 			memset(buff,0x00,LENGTH);
+    	}
+    	
+    	
+		printf("buffer gol\n");
+			
     	
 
     }

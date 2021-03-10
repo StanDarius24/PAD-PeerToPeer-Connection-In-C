@@ -357,13 +357,11 @@ void receiveMessageHandler() {
 			flushStdout();
 
 		}
-
 		else
 			if (receive == 0) {
 				close(fd);
 				break;
 			}
-
 			else {
 				// -1
 			}

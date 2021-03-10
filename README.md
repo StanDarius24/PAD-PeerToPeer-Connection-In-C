@@ -1,6 +1,6 @@
 # Peer-to-Peer File Transfer through Network
 
-This project aims to develop a Peer-to-Peer File Transfer through a Network controlled and centralized by a Server.
+This project aims to develop a Peer-to-Peer File Transfer Project through a Network controlled and centralized by a Server.
 
 # About
 
